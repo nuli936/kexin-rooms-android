@@ -1,0 +1,21 @@
+plugins { id 'com.android.application' }
+android {
+    namespace 'cn.kexin.rooms'
+    compileSdk 35
+    defaultConfig {
+        applicationId 'cn.kexin.rooms'
+        minSdk 26
+        targetSdk 35
+        versionCode 1
+        versionName '1.0.0'
+        testInstrumentationRunner 'cn.kexin.rooms.SmokeInstrumentation'
+    }
+    compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
+    buildTypes { release { minifyEnabled false } }
+    sourceSets { androidTest.assets.srcDirs = ['src/test/resources'] }
+}
+dependencies {
+    implementation 'org.jsoup:jsoup:1.18.3'
+    testImplementation 'junit:junit:4.13.2'
+    testImplementation 'org.json:json:20240303'
+}

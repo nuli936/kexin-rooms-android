@@ -1,0 +1,26 @@
+name: Build unsigned iOS IPA
+on:
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      - name: Generate Xcode project
+        working-directory: ios
+        run: xcodegen generate
+      - name: Build for iPhone
+        working-directory: ios
+        run: xcodebuild -project KexinRooms.xcodeproj -scheme KexinRooms -configuration Release -sdk iphoneos -derivedDataPath build CODE_SIGNING_ALLOWED=NO build
+      - name: Package unsigned IPA
+        working-directory: ios
+        run: |
+          mkdir -p Payload
+          cp -R build/Build/Products/Release-iphoneos/KexinRooms.app Payload/
+          zip -qr Kexin-Rooms-iOS-1.0.0-unsigned.ipa Payload
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Kexin-Rooms-iOS-unsigned
+          path: ios/Kexin-Rooms-iOS-1.0.0-unsigned.ipa

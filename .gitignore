@@ -7,3 +7,4 @@ ios/build/
 ios/Payload/
 ios/*.ipa
 ios/*.xcodeproj/
+ios/.build/

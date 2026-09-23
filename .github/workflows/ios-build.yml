@@ -11,6 +11,9 @@ jobs:
       - name: Generate Xcode project
         working-directory: ios
         run: xcodegen generate
+      - name: Test school protocol
+        working-directory: ios
+        run: swift test
       - name: Build for iPhone
         working-directory: ios
         run: xcodebuild -project KexinRooms.xcodeproj -scheme KexinRooms -configuration Release -sdk iphoneos -derivedDataPath build CODE_SIGNING_ALLOWED=NO build

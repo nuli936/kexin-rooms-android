@@ -86,12 +86,15 @@ struct ContentView: View {
                         .font(.system(size: 16, weight: .semibold))
                         .foregroundStyle(Palette.ink)
                     HStack(spacing: 8) {
-                        DatePicker("日期", selection: $model.date, displayedComponents: .date)
-                            .labelsHidden()
-                            .onChange(of: model.date) { _ in
+                        DatePicker("日期", selection: Binding(
+                            get: { model.date },
+                            set: { newDate in
+                                model.date = newDate
                                 model.followToday = false
                                 model.changeFilters()
                             }
+                        ), displayedComponents: .date)
+                            .labelsHidden()
                         Button("今天") {
                             model.followToday = true
                             model.date = SchoolProtocol.calendar.startOfDay(for: Date())

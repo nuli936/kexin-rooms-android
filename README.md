@@ -8,7 +8,7 @@
 
 ![紧凑查询界面](docs/compact-ui.png)
 
-iPhone 个人安装版本的原生 SwiftUI 源码与构建说明见 [ios/README.md](ios/README.md)。iOS 安装需要在设备持有者本机用 Apple ID 签名，不能直接点击 GitHub 上的未签名 IPA 安装。
+iPhone 个人安装版本的原生 SwiftUI 源码与 Windows 安装步骤见 [ios/README.md](ios/README.md)。iOS 安装需要在设备持有者本机用 Apple ID 签名，不能直接点击 GitHub 上的未签名 IPA 安装。
 
 ## 使用
 

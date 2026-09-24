@@ -137,7 +137,12 @@ class SchoolClient {
       req.headers["Content-Type"] = "application/x-www-form-urlencoded; charset=UTF-8";
       req.headers.Origin = ORIGIN;
     }
-    const result = binary ? await req.load() : await req.loadString();
+    let result;
+    try {
+      result = binary ? await req.load() : await req.loadString();
+    } catch (error) {
+      throw new Error(`学校接口 ${path.split("?")[0]} 连接失败：${text(error.message || error)}`);
+    }
     const response = req.response || {};
     if (!response.url || !allowed(response.url, "GET")) fail("学校请求被重定向到非预期地址。");
     if (response.statusCode === 401) fail("学校登录已过期，请重新运行脚本。");
@@ -266,6 +271,18 @@ class SchoolClient {
   }
 }
 
+async function probeSchoolConnection() {
+  const probe = new WebView();
+  probe.shouldAllowRequest = request => allowed(request.url, "GET");
+  try {
+    await probe.loadURL(ORIGIN + "/xtgl/login_slogin.html");
+    const page = await probe.getHTML();
+    return /name=["']yhm["']/i.test(page) ? "苹果网页网络接口可打开学校登录页" : "苹果网页网络接口已连接，但返回的不是登录页";
+  } catch (error) {
+    return `苹果网页网络接口也失败：${text(error.message || error)}`;
+  }
+}
+
 async function credentials() {
   if (Keychain.contains(USER_KEY) && Keychain.contains(PASS_KEY)) return [Keychain.get(USER_KEY), Keychain.get(PASS_KEY), false];
   const prompt = new Alert();
@@ -355,7 +372,10 @@ async function main() {
   } catch (error) {
     const alert = new Alert();
     alert.title = "本次未显示空教室";
-    alert.message = text(error.message || error);
+    const reason = text(error.message || error);
+    const connectionCheck = /TLS|SSL|安全连接|secure connection|certificate|证书/i.test(reason)
+      ? `\n\n只读连接检查（未发送账号密码）：${await probeSchoolConnection()}` : "";
+    alert.message = reason + connectionCheck;
     alert.addAction("知道了");
     if (Keychain.contains(USER_KEY) || Keychain.contains(PASS_KEY)) alert.addDestructiveAction("清除本机账号");
     if (await alert.presentAlert() === 1) {

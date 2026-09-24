@@ -16,6 +16,20 @@ function fail(message) {
   throw new Error(message);
 }
 
+async function withTimeout(operation, label, milliseconds) {
+  let timer;
+  try {
+    return await Promise.race([
+      operation,
+      new Promise((_, reject) => {
+        timer = Timer.schedule(milliseconds, false, () => reject(new Error(`${label} 超时，请检查学校网络后重试。`)));
+      })
+    ]);
+  } finally {
+    if (timer) timer.invalidate();
+  }
+}
+
 function encode(form) {
   return form.map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(text(value)).replace(/%20/g, "+")}`).join("&");
 }
@@ -139,7 +153,7 @@ class SchoolClient {
     }
     let result;
     try {
-      result = binary ? await req.load() : await req.loadString();
+      result = await withTimeout(binary ? req.load() : req.loadString(), `学校接口 ${path.split("?")[0]}`, 25000);
     } catch (error) {
       throw new Error(`学校接口 ${path.split("?")[0]} 连接失败：${text(error.message || error)}`);
     }
@@ -162,7 +176,7 @@ class SchoolClient {
     if (!this.parser) {
       this.parser = new WebView();
       this.parser.shouldAllowRequest = () => false;
-      await this.parser.loadHTML("<!doctype html><html><body></body></html>");
+      await withTimeout(this.parser.loadHTML("<!doctype html><html><body></body></html>"), "本机页面解析准备", 10000);
     }
     const code = `(() => { const d = new DOMParser().parseFromString(${JSON.stringify(source)}, 'text/html');
       const value = id => d.getElementById(id)?.value || '';
@@ -176,7 +190,7 @@ class SchoolClient {
       const types = [...d.querySelectorAll('#cdlb_id option')].map(o => ({ id: o.value, label: o.value ? o.textContent.trim() : '全部场地类别' }));
       return { hasLogin: !!d.querySelector('input[name=yhm]'), year, term, campus, label, types };
     })()`;
-    return await this.parser.evaluateJavaScript(code);
+    return await withTimeout(this.parser.evaluateJavaScript(code), "学校页面解析", 10000);
   }
 
   async encrypt(password, modulus, exponent) {
@@ -200,7 +214,7 @@ class SchoolClient {
       const result = out.toString(16).padStart(k * 2, '0').match(/../g).map(x => parseInt(x, 16));
       return btoa(String.fromCharCode(...result));
     })()`;
-    return await this.parser.evaluateJavaScript(code);
+    return await withTimeout(this.parser.evaluateJavaScript(code), "教务密码加密", 10000);
   }
 
   async captcha() {
@@ -268,18 +282,6 @@ class SchoolClient {
       if (!page.rooms.length) fail("学校分页数据不完整。");
     }
     fail("学校返回页数超过安全上限。");
-  }
-}
-
-async function probeSchoolConnection() {
-  const probe = new WebView();
-  probe.shouldAllowRequest = request => allowed(request.url, "GET");
-  try {
-    await probe.loadURL(ORIGIN + "/xtgl/login_slogin.html");
-    const page = await probe.getHTML();
-    return /name=["']yhm["']/i.test(page) ? "苹果网页网络接口可打开学校登录页" : "苹果网页网络接口已连接，但返回的不是登录页";
-  } catch (error) {
-    return `苹果网页网络接口也失败：${text(error.message || error)}`;
   }
 }
 
@@ -372,10 +374,7 @@ async function main() {
   } catch (error) {
     const alert = new Alert();
     alert.title = "本次未显示空教室";
-    const reason = text(error.message || error);
-    const connectionCheck = /TLS|SSL|安全连接|secure connection|certificate|证书/i.test(reason)
-      ? `\n\n只读连接检查（未发送账号密码）：${await probeSchoolConnection()}` : "";
-    alert.message = reason + connectionCheck;
+    alert.message = text(error.message || error);
     alert.addAction("知道了");
     if (Keychain.contains(USER_KEY) || Keychain.contains(PASS_KEY)) alert.addDestructiveAction("清除本机账号");
     if (await alert.presentAlert() === 1) {

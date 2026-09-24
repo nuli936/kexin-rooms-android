@@ -6,9 +6,13 @@ const crypto = require('node:crypto');
 
 const source = fs.readFileSync(path.join(__dirname, 'Kexin-Rooms.js'), 'utf8')
   .replace(/if \(typeof UITable !== "undefined"[\s\S]*$/, '');
-const context = vm.createContext({ TextEncoder, Date, Intl, crypto: crypto.webcrypto, atob, btoa });
-vm.runInContext(source + '\nglobalThis.__test = { allowed, configFromSchool, queryForm, parsePage, dateParts, SchoolClient };', context);
-const { allowed, configFromSchool, queryForm, parsePage, dateParts, SchoolClient } = context.__test;
+const Timer = { schedule(milliseconds, _repeats, callback) {
+  const handle = setTimeout(callback, milliseconds);
+  return { invalidate() { clearTimeout(handle); } };
+} };
+const context = vm.createContext({ TextEncoder, Date, Intl, crypto: crypto.webcrypto, atob, btoa, Timer });
+vm.runInContext(source + '\nglobalThis.__test = { allowed, configFromSchool, queryForm, parsePage, dateParts, SchoolClient, withTimeout };', context);
+const { allowed, configFromSchool, queryForm, parsePage, dateParts, SchoolClient, withTimeout } = context.__test;
 const fixture = name => JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'app', 'src', 'test', 'resources', name), 'utf8'));
 
 assert.equal(allowed('https://jwglxxfwpt.hebeu.edu.cn/cdjy/cdjy_cxKxcdlb.html?gnmkdm=N2155&doType=query', 'POST'), true);
@@ -52,4 +56,9 @@ async function testRSA() {
   assert.equal(plaintext, 'temporary-test-password');
 }
 
-testRSA().then(() => console.log('Scriptable protocol and RSA checks passed')).catch(error => { console.error(error); process.exitCode = 1; });
+async function testTimeout() {
+  assert.equal(await withTimeout(Promise.resolve('ok'), '快速请求', 100), 'ok');
+  await assert.rejects(withTimeout(new Promise(() => {}), '登录接口', 5), /登录接口 超时/);
+}
+
+Promise.all([testRSA(), testTimeout()]).then(() => console.log('Scriptable protocol, RSA, and timeout checks passed')).catch(error => { console.error(error); process.exitCode = 1; });
